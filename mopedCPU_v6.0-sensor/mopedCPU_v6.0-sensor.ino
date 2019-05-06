@@ -27,6 +27,11 @@ int rightTurnAngle = 0;
 int leftTurnAngle = 0;
 int maxRightTurnAngle = 0;
 int maxLeftTurnAngle = 0;
+int grindPlate = false;
+int wheelieTime = 0;
+int topWheelieTime = 0;
+int stoppieTime = 0;
+int topStoppieTime = 0;
 
 int footerRND;
 
@@ -37,6 +42,7 @@ int minDHTHum = 0;
 int avgDHTTemp = 0;
 int avgDHTHum = 0;
 
+int engineTempColor = ST7735_WHITE;
 int engineTempVal = 0;
 int externalTemp = 0;
 int externalHum = 0;
@@ -139,13 +145,15 @@ void footerReport(){
 }
 
 void mpuGyroAcc(){
+  int wheelieTime = 0;
+  int stoppieTime = 0;
   Vector normAccel = mpu.readNormalizeAccel();
   Vector normGyro = mpu.readNormalizeGyro();
   pitch = -(atan2(normAccel.XAxis, sqrt(normAccel.YAxis*normAccel.YAxis + normAccel.ZAxis*normAccel.ZAxis))*180.0)/M_PI;
   roll = (atan2(normAccel.YAxis, normAccel.ZAxis)*180.0)/M_PI;
   
   if(pitch<5){
-    int wheelieAngle = 1/pitch;
+    int wheelieAngle = pitch*-1;
   } else if(pitch>5){
     int stoppieAngle = pitch;
   } else if(pitch >= -5 && pitch <= 5){
@@ -155,12 +163,18 @@ void mpuGyroAcc(){
   if(roll>0){
     int rightTurnAngle = roll;
   } else if(roll<0){
-    int leftTurnAngle = 1/roll;
+    int leftTurnAngle = roll*-1;
   } else if(roll==0){
     int leftTurnAngle = roll;
     int rightTurnAngle = roll;
   }
 
+  if(wheelieAngle >= 50){
+    int grindPlate = true;
+  } else if(wheelieAngle <50){
+    int grindPlate = false;
+  }
+  
   if(rightTurnAngle > maxRightTurnAngle){
     int maxRightTurnAngle = rightTurnAngle;
   }
@@ -173,16 +187,40 @@ void mpuGyroAcc(){
   if(stoppieAngle > maxStoppieAngle){
     int maxStoppieAngle = stoppieAngle;
   }
+
+  while(pitch<5){
+    delay(1000);
+    int wheelieTime = wheelieTime +1;
+  }
+  if(wheelieTime > topWheelieTime){
+    int topWheelieTime = wheelieTime;
+  }
+  while(pitch>5){
+    delay(1000);
+    int stoppieTime = stoppieTime +1;
+  }
+  if(stoppieTime > topStoppieTime){
+    int topStoppieTime = stoppieTime;
+  }
 }
 
 void engineTempSensor(){
   float engineTemp = getEngineTemp();
   int engineTempVal = engineTemp;
+  
   if(engineTemp > maxEngineTemp){
     int maxEngineTemp = engineTempVal;
   }
   if(engineTemp < minEngineTemp){
     int minEngineTemp = engineTempVal;
+  }
+  
+  if(engineTemp>=70.00){
+    int engineTempColor = ST7735_RED;
+  } else if(engineTemp>=50 && engineTemp<70){
+    int engineTempColor = ST7735_YELLOW;
+  } else if(engineTemp<50){
+    int engineTempColor = ST7735_GREEN;
   }
 
   int avgEngineTemp = (maxEngineTemp+minEngineTemp)/2;
@@ -248,7 +286,7 @@ void generalValMatrixSet() {
   tft.setCursor(0, 36);
   tft.setTextColor(ST7735_BLUE);
   tft.print("Engine temp: ");
-  tft.setTextColor(ST7735_WHITE);
+  tft.setTextColor(engineTempColor);
   tft.print(engineTempVal);
   tft.setCursor(0, 46);
   tft.setTextColor(ST7735_BLUE);
@@ -453,7 +491,6 @@ void turnAngle(){
 }
 
 void wheelie(){
-  int grindPlate = false;
   tft.setCursor(23,45);
   tft.setTextSize(2);
   tft.setTextColor(ST7735_BLUE);
@@ -464,7 +501,7 @@ void wheelie(){
   tft.print("TOP ANGLE:  ");
   tft.setTextSize(2);
   tft.setTextColor(ST7735_WHITE);
-  tft.print("00");
+  tft.print(maxWheelieAngle);
   tft.setTextSize(1);
   tft.print(" GRAD");
   tft.setCursor(0, 115);
@@ -472,7 +509,7 @@ void wheelie(){
   tft.print("TOP TIME: ");
   tft.setTextSize(2);
   tft.setTextColor(ST7735_WHITE);
-  tft.print("000");
+  tft.print(topWheelieTime);
   tft.setTextSize(1);
   tft.print("  SEC");
   tft.setCursor(0,74);
@@ -499,7 +536,7 @@ void stoppie(){
   tft.print("TOP ANGLE:  ");
   tft.setTextSize(2);
   tft.setTextColor(ST7735_WHITE);
-  tft.print("00");
+  tft.print(maxStoppieAngle);
   tft.setTextSize(1);
   tft.print(" GRAD");
   tft.setCursor(0, 102);
@@ -507,7 +544,7 @@ void stoppie(){
   tft.print("TOP TIME: ");
   tft.setTextSize(2);
   tft.setTextColor(ST7735_WHITE);
-  tft.print("000");
+  tft.print(topStoppieTime);
   tft.setTextSize(1);
   tft.print("  SEC");
 }
